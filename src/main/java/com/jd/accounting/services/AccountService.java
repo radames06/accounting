@@ -1,0 +1,13 @@
+package com.jd.accounting.services;
+
+import com.jd.accounting.model.Account;
+import com.jd.accounting.model.security.User;
+
+import java.util.Set;
+
+public interface AccountService {
+    Set<Account> findAll();
+    Account create(String name, float initial);
+    Account findById(Long id);
+    Set<Account> currentUserAccounts();
+}
