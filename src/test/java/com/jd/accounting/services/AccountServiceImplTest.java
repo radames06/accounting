@@ -30,16 +30,15 @@ class AccountServiceImplTest {
     @MockBean
     AccountRepository accountRepository;
 
-    @MockBean
-    UserService userService;
+//    @MockBean
+//    UserService userService;
+//
+//    @MockBean
+//    Authentication authentication;
 
-    @MockBean
-    Authentication authentication;
+//    @MockBean
+//    SecurityContext securityContext;
 
-    @MockBean
-    SecurityContext securityContext;
-
-    @InjectMocks
     @Autowired
     AccountServiceImpl accountService;
 
@@ -82,10 +81,10 @@ class AccountServiceImplTest {
         account3.setInitial(10000);
         account3.setMovements(new ArrayList<Movement>());
 
-        Mockito.when(securityContext.getAuthentication()).thenReturn(authentication);
-        SecurityContextHolder.setContext(securityContext);
-        Mockito.when(userService.findByUsername("User")).thenReturn(userUser);
-        Mockito.when(userService.findByUsername("Admin")).thenReturn(userAdmin);
+//        Mockito.when(securityContext.getAuthentication()).thenReturn(authentication);
+//        SecurityContextHolder.setContext(securityContext);
+//        Mockito.when(userService.findByUsername("User")).thenReturn(userUser);
+//        Mockito.when(userService.findByUsername("Admin")).thenReturn(userAdmin);
 
         accountsUser = new HashSet<>(Arrays.asList(account1, account2));
         accountsAdmin = new HashSet<>(Arrays.asList(account3));
@@ -97,11 +96,8 @@ class AccountServiceImplTest {
     @Test
     void currentUserAccounts() {
 
-        Mockito.when(authentication.getPrincipal()).thenReturn(UserMapper.userToPrincipal(userUser));
-        assertEquals(accountService.currentUserAccounts(), accountsUser);
-
-        Mockito.when(authentication.getPrincipal()).thenReturn(UserMapper.userToPrincipal(userAdmin));
-        assertEquals(accountService.currentUserAccounts(), accountsAdmin);
+        assertEquals(accountService.userAccounts(userUser), accountsUser);
+        assertEquals(accountService.userAccounts(userAdmin), accountsAdmin);
 
     }
 }

@@ -15,13 +15,15 @@ import java.util.Set;
 public class AccountServiceImpl implements AccountService {
 
     private final AccountRepository accountRepository;
-    private final UserService userService;
+    //private final UserService userService;
 
-    public AccountServiceImpl(AccountRepository accountRepository, UserService userService) {
+    public AccountServiceImpl(AccountRepository accountRepository) {
 
         this.accountRepository = accountRepository;
-        this.userService = userService;
+        //this.userService = userService;
     }
+
+
 
     @Override
     public Set<Account> findAll() {
@@ -32,14 +34,11 @@ public class AccountServiceImpl implements AccountService {
     }
 
     @Override
-    public Account create(String name, float initial) {
-        // TODO : Mettre au niveau de la classe ?
-        UserPrincipal principal = (UserPrincipal) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-
+    public Account create(User user, String name, float initial) {
         Account account = new Account();
         account.setName(name);
         account.setInitial(initial);
-        account.setUser(userService.findByUsername(principal.getUsername()));
+        account.setUser(user);
         return accountRepository.save(account);
     }
 
@@ -50,9 +49,7 @@ public class AccountServiceImpl implements AccountService {
     }
 
     @Override
-    public Set<Account> currentUserAccounts() {
-
-        UserPrincipal principal = (UserPrincipal) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        return accountRepository.findByUser(userService.findByUsername(principal.getUsername()));
+    public Set<Account> userAccounts(User user) {
+        return accountRepository.findByUser(user);
     }
 }

@@ -8,7 +8,6 @@ import java.util.Collection;
 public class UserPrincipal implements UserDetails {
 
     private static final long serialVersionUID = 1L;
-//    private int id;
     private String username;
     private String password;
     private boolean enabled;
@@ -55,11 +54,4 @@ public class UserPrincipal implements UserDetails {
         this.authorities = authorities;
     }
 
-//    public int getId() {
-//        return id;
-//    }
-//
-//    public void setId(int id) {
-//        this.id = id;
-//    }
 }

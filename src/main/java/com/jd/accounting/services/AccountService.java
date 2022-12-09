@@ -7,7 +7,7 @@ import java.util.Set;
 
 public interface AccountService {
     Set<Account> findAll();
-    Account create(String name, float initial);
+    Account create(User user, String name, float initial);
     Account findById(Long id);
-    Set<Account> currentUserAccounts();
+    Set<Account> userAccounts(User user);
 }

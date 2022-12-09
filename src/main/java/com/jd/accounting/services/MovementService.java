@@ -7,6 +7,6 @@ import java.util.Set;
 
 public interface MovementService {
 
-    Set<Movement> findByAccount(Long accountId);
-    Movement create(Movement movement);
+    Set<Movement> findByAccount(Account account);
+    Movement create(Account account, Movement movement);
 }

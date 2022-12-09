@@ -1,6 +1,9 @@
 package com.jd.accounting.model.security;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.jd.accounting.model.Account;
+// TODO : import bizarre
 import com.sun.istack.NotNull;
 
 import javax.persistence.*;
@@ -11,16 +14,21 @@ import java.util.List;
 @Table(name = "users")
 public class User {
 
-//    @Id
-//    @GeneratedValue(strategy= GenerationType.IDENTITY)
-//    private int id;
     @Id
+    @Column(nullable = false)
     @NotNull
     private String username;
     @NotNull
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private String password;
     @NotNull
     private boolean enabled;
+    @NotNull
+    private String email;
+    @NotNull
+    @Enumerated(EnumType.STRING)
+    private Provider provider;
+
     @ManyToMany(fetch=FetchType.LAZY)
     @JoinTable(
             name="users_roles",
@@ -30,15 +38,8 @@ public class User {
     private List<Role> roles;
 
     @OneToMany( targetEntity = Account.class, mappedBy = "user")
+    @JsonIgnore
     private List<Account> accounts = new ArrayList();
-
-//    public int getId() {
-//        return id;
-//    }
-//    public void setId(int id) {
-//        this.id = id;
-//    }
-
 
     public User(String username) {
         this.username = username;
@@ -70,5 +71,21 @@ public class User {
     }
     public void setRoles(List<Role> roles) {
         this.roles = roles;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public Provider getProvider() {
+        return provider;
+    }
+
+    public void setProvider(Provider provider) {
+        this.provider = provider;
     }
 }

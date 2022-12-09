@@ -25,7 +25,6 @@ public class UserMapper {
         userp.setPassword(user.getPassword());
         userp.setEnabled(user.isEnabled());
         userp.setAuthorities(authorities);
-//        userp.setId(user.getId());
         return userp;
     }
 
