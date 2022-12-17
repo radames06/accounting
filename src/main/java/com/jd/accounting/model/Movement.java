@@ -18,4 +18,10 @@ public class Movement {
     @JoinColumn( name = "id_account", nullable = false )
     private Account account;
 
+    public String toString() {
+        String result = "Account : " + this.account.getName();
+        result += " / Amount : " + this.amount;
+        return result;
+    }
+
 }

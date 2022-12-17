@@ -1,31 +1,30 @@
 package com.jd.accounting.controllers;
 
-import com.jd.accounting.SpringSecurityWebAuxTestConfig;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.jd.accounting.exceptions.AccountNotFoundException;
+import com.jd.accounting.exceptions.DuplicateAccountForUser;
 import com.jd.accounting.model.Account;
-import com.jd.accounting.model.mappers.UserMapper;
 import com.jd.accounting.model.security.Role;
-import com.jd.accounting.model.security.RoleName;
 import com.jd.accounting.model.security.User;
-import com.jd.accounting.security.SecurityAdapter;
+import com.jd.accounting.repositories.AccountRepository;
+import com.jd.accounting.repositories.ResourceRepository;
+import com.jd.accounting.security.JwtProvider;
 import com.jd.accounting.services.AccountService;
 import com.jd.accounting.services.UserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.InjectMocks;
+import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
-import org.springframework.security.access.SecurityConfig;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.test.context.support.WithMockUser;
-import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 
-import java.security.Principal;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Set;
@@ -33,37 +32,33 @@ import java.util.Set;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-//@SpringBootTest
-//@ExtendWith(MockitoExtension.class)
-@WebMvcTest(controllers = AccountController.class)
+@WebMvcTest(AccountController.class)
 @AutoConfigureMockMvc(addFilters = false)
 class AccountControllerTest {
 
     @Autowired
     MockMvc mockMvc;
+    @Autowired
+    ResourceRepository resourceRepository;
 
     @MockBean
     AccountService accountService;
 
-//    @MockBean
-//    SecurityContext securityContext;
-//
-//    @MockBean
-//    Authentication authentication;
-
     @MockBean
     UserService userService;
 
-    @InjectMocks
-    AccountController accountController;
-
-    // TODO : Semble obligatoire ? pourquoi ?
     @MockBean
-    SecurityAdapter securityAdapter;
+    private JwtProvider jwtProvider;
+
+    @MockBean
+    private PasswordEncoder passwordEncoder;
+
+    private static ObjectMapper mapper = new ObjectMapper();
 
     Account account1 = new Account();
     Account account2 = new Account();
@@ -76,11 +71,11 @@ class AccountControllerTest {
     void prepareData() {
         userUser.setUsername("Guest");
         userUser.setRoles(new ArrayList<>());
-        userUser.getRoles().add(new Role(1, RoleName.USER));
+        userUser.getRoles().add(new Role(1, "ROLE_USER"));
 
         userAdmin.setUsername("Admin");
         userAdmin.setRoles(new ArrayList<>());
-        userAdmin.getRoles().add(new Role(2, RoleName.ADMIN));
+        userAdmin.getRoles().add(new Role(2, "ROLE_ADMIN"));
 
         account1.setId(1L);
         account1.setUser(userUser);
@@ -100,24 +95,18 @@ class AccountControllerTest {
         account3.setInitial(10000);
         account3.setMovements(new ArrayList<>());
 
-//        Mockito.when(securityContext.getAuthentication()).thenReturn(authentication);
-//        SecurityContextHolder.setContext(securityContext);
-
-        Mockito.when(userService.findByUsername("Guest")).thenReturn(userUser);
-        Mockito.when(userService.findByUsername("Admin")).thenReturn(userAdmin);
-
+        Mockito.when(userService.loadUserByUsername("Guest")).thenReturn(userUser);
+        Mockito.when(userService.loadUserByUsername("Admin")).thenReturn(userAdmin);
+        Mockito.when(userService.getCurrentUser()).thenReturn(userUser);
 
     }
 
     @Test
-    @WithMockUser(value = "USER") //roles = "USER", username = "Guest")
-    void listAccounts() throws Exception {
+    @WithMockUser
+    void listAccountsByUserTest() throws Exception {
         Set<Account> accountSet = new HashSet<>(Set.of(account1, account2, account3));
         Mockito.when(accountService.userAccounts(Mockito.any(User.class))).thenReturn(accountSet);
-//        Mockito.when(authentication.getPrincipal()).thenReturn(UserMapper.userToPrincipal(userUser));
 
-        System.out.println(accountService.userAccounts(userUser));
-        // TODO : Enrichir le test avec le contenu attendu et le formattage standard JSON attendu
         mockMvc.perform(MockMvcRequestBuilders
                 .get("/accounts")
                 .contentType(MediaType.APPLICATION_JSON))
@@ -126,20 +115,60 @@ class AccountControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "USER", username = "Admin")
-    void createAccount() throws Exception {
-        //Set<Account> accountSet = new HashSet<Account>(Set.of(account1, account2));
-        Mockito.when(accountService.create(eq(userAdmin), Mockito.any(String.class), Mockito.anyFloat())).thenReturn(account3);
+    @WithMockUser(roles = "ADMIN")
+    void listAllAccounts() throws Exception {
+        Set<Account> accountSet = new HashSet<>(Set.of(account1, account2, account3));
+        Mockito.when(accountService.findAll()).thenReturn(accountSet);
+
+        mockMvc.perform(MockMvcRequestBuilders
+                        .get("/admin/accounts/")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(3)));
+    }
+
+    @Test
+    @WithMockUser
+    void createAccountTest() throws Exception {
+        Mockito.when(accountService.create(Mockito.any(User.class), eq(account3.getName()), Mockito.anyFloat())).thenReturn(account3);
+        Mockito.when(accountService.create(Mockito.any(User.class), eq(account2.getName()), Mockito.anyFloat()))
+                .thenThrow(new DuplicateAccountForUser(resourceRepository.getResource("jd.exception.duplicateaccountforuser", account2.getName(), userUser.getUsername())));
 
         mockMvc.perform(post("/accounts")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                    "name":"Cpt Admin",
-                                    "initial":"1"
-                                }""")
+                        .content(mapper.writeValueAsString(account3))
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("name", is("Cpt Admin")));
+                .andExpect(jsonPath("name", is(account3.getName())));
+
+        mockMvc.perform(post("/accounts")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(mapper.writeValueAsString(account2))
+                .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("message", is(resourceRepository.getResource("jd.exception.duplicateaccountforuser", account2.getName(), userUser.getUsername()))));
+    }
+
+    @Test
+    @WithMockUser
+    void deleteAccountTest() throws Exception {
+        Mockito.doThrow(new AccountNotFoundException(1L)).when(accountService).deleteById(1L);
+        Mockito.doThrow(new AccountNotFoundException(2L)).when(accountService).deleteById(2L);
+        Mockito.when(accountService.findById(1L)).thenReturn(account1);
+        Mockito.when(accountService.findById(3L)).thenReturn(account3);
+        Mockito.when(userService.getCurrentUser()).thenReturn(userUser);
+
+
+        mockMvc.perform(delete("/accounts/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("message", is("Account not found : 1")));
+
+        mockMvc.perform(delete("/accounts/3")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("message", is("The account 3 does not belong to user "+userUser.getUsername())));
     }
 }

@@ -5,14 +5,19 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.jd.accounting.model.Account;
 // TODO : import bizarre
 import com.sun.istack.NotNull;
+import org.springframework.data.domain.Persistable;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
 
 import javax.persistence.*;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 @Entity
 @Table(name = "users")
-public class User {
+public class User implements UserDetails {
 
     @Id
     @Column(nullable = false)
@@ -35,9 +40,9 @@ public class User {
             joinColumns= {@JoinColumn(name="username")},
             inverseJoinColumns = {@JoinColumn(name="role_id")}
     )
-    private List<Role> roles;
+    private List<Role> roles = new ArrayList<>();
 
-    @OneToMany( targetEntity = Account.class, mappedBy = "user")
+    @OneToMany( targetEntity = Account.class, mappedBy = "user", cascade = CascadeType.ALL)
     @JsonIgnore
     private List<Account> accounts = new ArrayList();
 
@@ -48,12 +53,41 @@ public class User {
     public User() {
     }
 
+
+    @Override
+    public boolean isAccountNonExpired() {
+        return true;
+    }
+
+    @Override
+    public boolean isAccountNonLocked() {
+        return true;
+    }
+
+    @Override
+    public boolean isCredentialsNonExpired() {
+        return true;
+    }
     public String getUsername() {
         return username;
     }
+
+
     public void setUsername(String username) {
         this.username = username;
     }
+
+    @Override
+    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+
+        List<SimpleGrantedAuthority> authorities = new ArrayList<>();
+        for (Role role : roles) {
+            authorities.add(new SimpleGrantedAuthority(role.getName()));
+        }
+        return authorities;
+    }
+
     public String getPassword() {
         return password;
     }
@@ -87,5 +121,9 @@ public class User {
 
     public void setProvider(Provider provider) {
         this.provider = provider;
+    }
+
+    public void addRole(Role role) {
+        this.roles.add(role);
     }
 }

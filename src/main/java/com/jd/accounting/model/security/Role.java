@@ -8,13 +8,18 @@ public class Role {
     @Id
     @GeneratedValue(strategy= GenerationType.IDENTITY)
     private int id;
-    @Enumerated(EnumType.STRING)
-    private RoleName name;
+
+    // TODO : Remettre en ENUM
+    private String name;
 
     public Role() {
     }
 
-    public Role(int id, RoleName name) {
+    public Role(String roleName) {
+        this.name = roleName;
+    }
+
+    public Role(int id, String name) {
         this.id = id;
         this.name = name;
     }
@@ -25,10 +30,15 @@ public class Role {
     public void setId(int id) {
         this.id = id;
     }
-    public RoleName getName() {
+    public String getName() {
         return name;
     }
-    public void setName(RoleName name) {
+    public void setName(String name) {
         this.name = name;
+    }
+
+    @Override
+    public String toString() {
+        return this.name;
     }
 }

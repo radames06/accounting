@@ -24,8 +24,15 @@ public class Account {
     private List<Movement> movements = new ArrayList<>();
 
     @JsonIgnore
-    @ManyToOne( cascade = CascadeType.ALL )
+    @ManyToOne() // cascade = CascadeType.ALL )
     @JoinColumn( name = "username", nullable = false )
     private User user;
+
+    public String toString() {
+        String result = "Name : " + this.name;
+        result += " / Id : " + this.id;
+        result += " / Initial : " + this.initial;
+        return result;
+    }
 
 }
