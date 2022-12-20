@@ -1,9 +1,12 @@
 package com.jd.accounting.model.security;
 
+import com.fasterxml.jackson.annotation.JsonIdentityInfo;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.ObjectIdGenerators;
 import com.jd.accounting.model.Account;
 // TODO : import bizarre
+import com.jd.accounting.model.Category;
 import com.sun.istack.NotNull;
 import org.springframework.data.domain.Persistable;
 import org.springframework.security.core.GrantedAuthority;
@@ -17,6 +20,9 @@ import java.util.List;
 
 @Entity
 @Table(name = "users")
+@JsonIdentityInfo(
+        generator = ObjectIdGenerators.PropertyGenerator.class,
+        property = "username")
 public class User implements UserDetails {
 
     @Id
@@ -50,10 +56,22 @@ public class User implements UserDetails {
         this.username = username;
     }
 
+
+    @OneToMany( targetEntity = Category.class, mappedBy = "user", cascade = CascadeType.ALL)
+    private List<Category> categories = new ArrayList<>();
+
     public User() {
     }
 
+    // TODO : A améliorer - https://stackoverflow.com/questions/17526608/how-to-find-an-object-in-an-arraylist-by-property
+    public List<String> getStringRoles() {
+        List<String> stringRoles = new ArrayList<>();
 
+        for (Role role : roles) {
+            stringRoles.add(role.getName());
+        }
+        return stringRoles;
+    }
     @Override
     public boolean isAccountNonExpired() {
         return true;
@@ -125,5 +143,13 @@ public class User implements UserDetails {
 
     public void addRole(Role role) {
         this.roles.add(role);
+    }
+
+    public List<Category> getCategories() {
+        return categories;
+    }
+
+    public void setCategories(List<Category> categories) {
+        this.categories = categories;
     }
 }

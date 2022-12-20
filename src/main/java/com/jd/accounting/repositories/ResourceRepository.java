@@ -12,29 +12,37 @@ import java.util.Locale;
 @Component
 public class ResourceRepository {
 
+//    @Autowired
+    private static MessageSource messageSource;
+
+//    @PostConstruct
+//    private void init() {
+//        accessor = new MessageSourceAccessor(messageSource); //, Locale.ENGLISH);
+//    }
+
     @Autowired
-    private MessageSource messageSource;
-
-    private MessageSourceAccessor accessor;
-
-    @PostConstruct
-    private void init() {
-        accessor = new MessageSourceAccessor(messageSource); //, Locale.ENGLISH);
+    public ResourceRepository(MessageSource messageSource) {
+        this.messageSource = messageSource;
     }
 
-    public String getResource(String key, String param1, String param2) {
+    public static String getResource(String key, String param1, String param2) {
+        MessageSourceAccessor accessor = new MessageSourceAccessor(messageSource);
         final String[] params = new String[]{param1, param2};
         final String msg = accessor.getMessage(key, params, LocaleContextHolder.getLocale());
 
         return msg;
     }
 
-    public String getResource(String key, String param1) {
+    public static String getResource(String key, String param1) {
         return getResource(key, param1, null);
     }
 
-    public String getResource(String key) {
+    public static String getResource(String key) {
         return getResource(key, null, null);
     }
+
+//    public static String getResourceTest(String key) {
+//        return new String("a");
+//    }
 
 }

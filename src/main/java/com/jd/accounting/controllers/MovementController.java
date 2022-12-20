@@ -1,5 +1,6 @@
 package com.jd.accounting.controllers;
 
+import com.jd.accounting.exceptions.MovementNotFoundException;
 import com.jd.accounting.model.Account;
 import com.jd.accounting.model.Movement;
 import com.jd.accounting.model.security.User;
@@ -22,13 +23,11 @@ public class MovementController {
     private final MovementService movementService;
     private final AccountService accountService;
     private final UserService userService;
-    private final ResourceRepository resourceRepository;
 
-    public MovementController(MovementService movementService, AccountService accountService, UserService userService, ResourceRepository resourceRepository) {
+    public MovementController(MovementService movementService, AccountService accountService, UserService userService) {
         this.movementService = movementService;
         this.accountService = accountService;
         this.userService = userService;
-        this.resourceRepository = resourceRepository;
     }
 
     @RolesAllowed({"ROLE_USER", "ROLE_ADMIN"})
@@ -37,10 +36,10 @@ public class MovementController {
 
         Account account = accountService.findById(accountId);
         User user = userService.getCurrentUser();
-        if (user.equals(account.getUser())) {
+        if (user.equals(account.getUser()) || user.getStringRoles().contains("ROLE_ADMIN")) {
             return ResponseEntity.ok(movementService.findByAccount(account));
         } else {
-            throw new AuthorizationServiceException(resourceRepository.getResource("jd.exception.accountbelongs", accountId.toString(), user.getUsername()));
+            throw new AuthorizationServiceException(ResourceRepository.getResource("jd.exception.accountbelongs", accountId.toString(), user.getUsername()));
         }
     }
 
@@ -51,10 +50,31 @@ public class MovementController {
         Account account = accountService.findById(accountId);
         User user = userService.getCurrentUser();
 
-        if (user.equals(account.getUser())) {
+        if (user.equals(account.getUser()) || user.getStringRoles().contains("ROLE_ADMIN")) {
             return ResponseEntity.ok(movementService.create(account, newMovement));
         } else {
-            throw new AuthorizationServiceException(resourceRepository.getResource("jd.exception.accountbelongs", accountId.toString(), user.getUsername()));
+            throw new AuthorizationServiceException(ResourceRepository.getResource("jd.exception.accountbelongs", accountId.toString(), user.getUsername()));
+        }
+    }
+
+    @RolesAllowed({"ROLE_USER", "ROLE_ADMIN"})
+    @DeleteMapping("/accounts/{accountId}/movements/{movementId}")
+    ResponseEntity<Void> deleteMovement(@PathVariable(value="accountId") Long accountId, @PathVariable(value="movementId") Long movementId ) {
+        User user = userService.getCurrentUser();
+        Account account = accountService.findById(accountId);
+        Movement movement;
+        try {
+            movement = movementService.findById(movementId);
+        } catch (MovementNotFoundException ex) {
+            throw new MovementNotFoundException(ResourceRepository.getResource("jd.exception.movementnotfound", movementId.toString(), accountId.toString()));
+        }
+        if (movement.getAccount().getId() != accountId) {
+            throw new MovementNotFoundException(ResourceRepository.getResource("jd.exception.movementnotfound", movementId.toString(), accountId.toString()));
+        } else if (user == account.getUser() || user.getStringRoles().contains("ROLE_ADMIN")) {
+            movementService.delete(movement);
+            return ResponseEntity.ok().build();
+        } else {
+            throw new AuthorizationServiceException(ResourceRepository.getResource("jd.exception.accountbelongs", accountId.toString(), user.getUsername()));
         }
     }
 }

@@ -14,7 +14,7 @@ public class Movement {
 
     private float amount;
 
-    @ManyToOne( cascade = CascadeType.ALL )
+    @ManyToOne //( cascade = CascadeType.ALL )
     @JoinColumn( name = "id_account", nullable = false )
     private Account account;
 

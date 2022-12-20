@@ -1,24 +1,23 @@
 package com.jd.accounting.services;
 
+import com.jd.accounting.exceptions.MovementNotFoundException;
 import com.jd.accounting.model.Account;
 import com.jd.accounting.model.Movement;
 import com.jd.accounting.repositories.AccountRepository;
 import com.jd.accounting.repositories.MovementRepository;
+import com.jd.accounting.repositories.ResourceRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 
 @Service
 public class MovementServiceImpl implements MovementService {
 
-    private final AccountRepository accountRepository;
-    private final MovementRepository movementRepository;
-
-    public MovementServiceImpl(MovementRepository movementRepository, AccountRepository accountRepository) {
-        this.movementRepository = movementRepository;
-        this.accountRepository = accountRepository;
-    }
+    @Autowired
+    private MovementRepository movementRepository;
 
     @Override
     public Set<Movement> findByAccount(Account account) {
@@ -31,6 +30,19 @@ public class MovementServiceImpl implements MovementService {
     public Movement create(Account account, Movement movement) {
 
         movement.setAccount(account);
+        account.movement(movement.getAmount());
         return movementRepository.save(movement);
+    }
+
+    @Override
+    public void delete(Movement movement) {
+        movement.getAccount().movement(- movement.getAmount());
+        movementRepository.delete(movement);
+    }
+
+    @Override
+    public Movement findById(Long id) {
+        return movementRepository.findById(id)
+                .orElseThrow(() -> new MovementNotFoundException(ResourceRepository.getResource("jd.exception.movementnotfound", id.toString())));
     }
 }

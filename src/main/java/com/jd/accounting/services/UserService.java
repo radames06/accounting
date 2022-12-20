@@ -11,5 +11,6 @@ public interface UserService extends UserDetailsService {
 
     public Set<User> findAll();
     public User create(User user);
-//    public User updatePassword(User user, String newPassword);
+    public User updatePassword(User user, String newPassword);
+    public User updateUser(User oldUser, User newUser);
 }

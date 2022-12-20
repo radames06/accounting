@@ -2,26 +2,23 @@ package com.jd.accounting.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jd.accounting.exceptions.AccountNotFoundException;
-import com.jd.accounting.exceptions.DuplicateAccountForUser;
+import com.jd.accounting.exceptions.DuplicateAccountForUserException;
 import com.jd.accounting.model.Account;
 import com.jd.accounting.model.security.Role;
 import com.jd.accounting.model.security.User;
-import com.jd.accounting.repositories.AccountRepository;
 import com.jd.accounting.repositories.ResourceRepository;
-import com.jd.accounting.security.JwtProvider;
 import com.jd.accounting.services.AccountService;
 import com.jd.accounting.services.UserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 
@@ -32,19 +29,19 @@ import java.util.Set;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doNothing;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(AccountController.class)
+@SpringBootTest
 @AutoConfigureMockMvc(addFilters = false)
+@DirtiesContext(classMode= DirtiesContext.ClassMode.AFTER_CLASS)
 class AccountControllerTest {
 
     @Autowired
     MockMvc mockMvc;
-    @Autowired
-    ResourceRepository resourceRepository;
 
     @MockBean
     AccountService accountService;
@@ -52,18 +49,11 @@ class AccountControllerTest {
     @MockBean
     UserService userService;
 
-    @MockBean
-    private JwtProvider jwtProvider;
-
-    @MockBean
-    private PasswordEncoder passwordEncoder;
-
     private static ObjectMapper mapper = new ObjectMapper();
 
     Account account1 = new Account();
     Account account2 = new Account();
     Account account3 = new Account();
-
     User userUser = new User();
     User userAdmin = new User();
 
@@ -132,7 +122,7 @@ class AccountControllerTest {
     void createAccountTest() throws Exception {
         Mockito.when(accountService.create(Mockito.any(User.class), eq(account3.getName()), Mockito.anyFloat())).thenReturn(account3);
         Mockito.when(accountService.create(Mockito.any(User.class), eq(account2.getName()), Mockito.anyFloat()))
-                .thenThrow(new DuplicateAccountForUser(resourceRepository.getResource("jd.exception.duplicateaccountforuser", account2.getName(), userUser.getUsername())));
+                .thenThrow(new DuplicateAccountForUserException(ResourceRepository.getResource("jd.exception.duplicateaccountforuser", account2.getName(), userUser.getUsername())));
 
         mockMvc.perform(post("/accounts")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -146,29 +136,28 @@ class AccountControllerTest {
                 .content(mapper.writeValueAsString(account2))
                 .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("message", is(resourceRepository.getResource("jd.exception.duplicateaccountforuser", account2.getName(), userUser.getUsername()))));
+                .andExpect(jsonPath("message", is(ResourceRepository.getResource("jd.exception.duplicateaccountforuser", account2.getName(), userUser.getUsername()))));
     }
 
     @Test
     @WithMockUser
     void deleteAccountTest() throws Exception {
-        Mockito.doThrow(new AccountNotFoundException(1L)).when(accountService).deleteById(1L);
-        Mockito.doThrow(new AccountNotFoundException(2L)).when(accountService).deleteById(2L);
-        Mockito.when(accountService.findById(1L)).thenReturn(account1);
+        Mockito.doThrow(new AccountNotFoundException(ResourceRepository.getResource("jd.exception.accountnotfound", "1"))).when(accountService).deleteById(1L);
+        Mockito.when(accountService.findById(1L)).thenThrow(new AccountNotFoundException(ResourceRepository.getResource("jd.exception.accountnotfound", "1")));
         Mockito.when(accountService.findById(3L)).thenReturn(account3);
         Mockito.when(userService.getCurrentUser()).thenReturn(userUser);
-
+        doNothing().when(accountService).deleteById(Mockito.any());
 
         mockMvc.perform(delete("/accounts/1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("message", is("Account not found : 1")));
+                .andExpect(jsonPath("message", is(ResourceRepository.getResource("jd.exception.accountnotfound", "1"))));
 
         mockMvc.perform(delete("/accounts/3")
                         .contentType(MediaType.APPLICATION_JSON)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("message", is("The account 3 does not belong to user "+userUser.getUsername())));
+                .andExpect(jsonPath("message", is(ResourceRepository.getResource("jd.exception.accountbelongs", "3", userUser.getUsername()))));
     }
 }

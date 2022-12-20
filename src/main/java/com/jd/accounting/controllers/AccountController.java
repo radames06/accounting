@@ -12,18 +12,15 @@ import org.springframework.web.bind.annotation.*;
 import javax.annotation.security.RolesAllowed;
 import java.util.Set;
 
-// TODO : Utiliser les ResponseEntity et gérer les erreurs
 @RestController
 public class AccountController {
 
     private final AccountService accountService;
     private final UserService userService;
-    private final ResourceRepository resourceRepository;
 
-    public AccountController(AccountService accountService, UserService userService, ResourceRepository resourceRepository) {
+    public AccountController(AccountService accountService, UserService userService) {
         this.accountService = accountService;
         this.userService = userService;
-        this.resourceRepository = resourceRepository;
     }
 
     @GetMapping("/accounts")
@@ -46,17 +43,17 @@ public class AccountController {
     }
 
     @DeleteMapping("/accounts/{id}")
+    @RolesAllowed({"ROLE_USER", "ROLE_ADMIN"})
     ResponseEntity<Void> deleteAccount(@PathVariable(value="id") Long accountId) {
 
         Account account = accountService.findById(accountId);
         User user = userService.getCurrentUser();
 
-        if (user.equals(account.getUser())) {
+        if (user.equals(account.getUser()) || user.getStringRoles().contains("ROLE_ADMIN")) {
             accountService.deleteById(accountId);
             return ResponseEntity.ok().build();
         } else {
-            throw new AuthorizationServiceException(resourceRepository.getResource("jd.exception.accountbelongs", account.getId().toString(), user.getUsername()));
+            throw new AuthorizationServiceException(ResourceRepository.getResource("jd.exception.accountbelongs", account.getId().toString(), user.getUsername()));
         }
-
     }
 }

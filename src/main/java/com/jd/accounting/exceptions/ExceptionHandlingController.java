@@ -18,7 +18,8 @@ public class ExceptionHandlingController extends ResponseEntityExceptionHandler 
         return buildResponseEntity(apiError);
     }
 
-    @ExceptionHandler({AccountNotFoundException.class, UserNotFoundException.class})
+    @ExceptionHandler({AccountNotFoundException.class, UserNotFoundException.class, MovementNotFoundException.class,
+        CategoryNotFoundException.class, SubcategoryNotFoundException.class, FileReaderException.class})
     protected ResponseEntity<Object> handleAccountNotFoundException(RuntimeException ex) {
         ApiError apiError = new ApiError(HttpStatus.NOT_FOUND);
         apiError.setMessage(ex.getMessage());
@@ -26,7 +27,7 @@ public class ExceptionHandlingController extends ResponseEntityExceptionHandler 
         return buildResponseEntity(apiError);
     }
 
-    @ExceptionHandler({DuplicateAccountForUser.class})
+    @ExceptionHandler({DuplicateAccountForUserException.class, DuplicateCategoryForUserException.class, DuplicateSubcategoryForCategoryException.class})
     protected ResponseEntity<Object> handleDuplicateAccountForUserException(RuntimeException ex) {
         ApiError apiError = new ApiError(HttpStatus.CONFLICT);
         apiError.setMessage(ex.getMessage());

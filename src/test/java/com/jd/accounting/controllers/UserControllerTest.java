@@ -3,26 +3,20 @@ package com.jd.accounting.controllers;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jd.accounting.model.security.Role;
 import com.jd.accounting.model.security.User;
-import com.jd.accounting.security.JwtProvider;
-import com.jd.accounting.security.SecurityConfiguration;
-import com.jd.accounting.services.AccountService;
-import com.jd.accounting.services.MovementService;
+import com.jd.accounting.repositories.ResourceRepository;
 import com.jd.accounting.services.UserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.InjectMocks;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.test.context.support.WithAnonymousUser;
 import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
-import org.springframework.test.web.servlet.result.MockMvcResultHandlers;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -30,12 +24,13 @@ import java.util.Set;
 
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(UserController.class)
+@SpringBootTest
 @AutoConfigureMockMvc(addFilters = false)
+@DirtiesContext(classMode= DirtiesContext.ClassMode.AFTER_CLASS)
 class UserControllerTest {
 
     @Autowired
@@ -44,18 +39,14 @@ class UserControllerTest {
     @MockBean
     UserService userService;
 
-    @InjectMocks
-    UserController userController;
-
-    @MockBean
-    private JwtProvider jwtProvider;
-    @MockBean
-    private PasswordEncoder passwordEncoder;
+//    @Autowired
+//    UserController userController;
 
     private static ObjectMapper mapper = new ObjectMapper();
 
     User user1 = new User();
     User user2 = new User();
+    User user3 = new User();
     Set<User> userSet;
 
     @BeforeEach
@@ -68,7 +59,11 @@ class UserControllerTest {
         user2.setRoles(new ArrayList<>());
         user2.getRoles().add(new Role(1, "ROLE_USER"));
 
-        userSet = new HashSet<>(Set.of(user1, user2));
+        user3.setUsername("Admin");
+        user3.setRoles(new ArrayList<>());
+        user3.getRoles().add(new Role(1, "ROLE_ADMIN"));
+
+        userSet = new HashSet<>(Set.of(user1, user2, user3));
     }
 
     @Test
@@ -81,7 +76,7 @@ class UserControllerTest {
                         .get("/users")
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$", hasSize(2)));
+                .andExpect(jsonPath("$", hasSize(3)));
     }
 
     @Test
@@ -90,8 +85,41 @@ class UserControllerTest {
 
         mockMvc.perform((MockMvcRequestBuilders
                 .post("/auth/register")
-                .contentType(MediaType.APPLICATION_JSON)).content(mapper.writeValueAsString(user1))
+                .contentType(MediaType.APPLICATION_JSON))
+                        .content(mapper.writeValueAsString(user1))
                         .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("username", is(user1.getUsername())));
+    }
+
+    @Test
+    @WithMockUser
+    void updateUserTest() throws Exception {
+        Mockito.when(userService.getCurrentUser()).thenReturn(user1);
+        Mockito.when(userService.updateUser(Mockito.any(), Mockito.any())).thenReturn(user1);
+
+        // Test nominal
+        mockMvc.perform(MockMvcRequestBuilders
+                        .put("/users/update")
+                        .content(mapper.writeValueAsString(user1))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("username", is(user1.getUsername())));
+
+        // User différent du user courant
+        mockMvc.perform(MockMvcRequestBuilders
+                        .put("/users/update")
+                        .content(mapper.writeValueAsString(user2))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("message", is(ResourceRepository.getResource("jd.exception.userupdateauthorization", user2.getUsername()))));
+
+        // Update par un Admin
+        Mockito.when(userService.getCurrentUser()).thenReturn(user3);
+        mockMvc.perform(MockMvcRequestBuilders
+                        .put("/users/update")
+                        .content(mapper.writeValueAsString(user1))
+                        .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("username", is(user1.getUsername())));
     }
